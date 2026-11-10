@@ -55,18 +55,6 @@ function App() {
 
   useEffect(() => {
     if (!writing) return;
-    try {
-      const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
-      if (draft && !text && !title) {
-        setText(draft.text || '');
-        setTitle(draft.title || '');
-        setCategory(draft.category || 'Unsent words');
-      }
-    } catch {}
-  }, [writing]);
-
-  useEffect(() => {
-    if (!writing) return;
     const hasDraft = Boolean(text || title);
     try {
       if (hasDraft) {
@@ -85,7 +73,17 @@ function App() {
     window.setTimeout(() => { setPage(next); setTurn(''); }, 650);
   }
 
-  function openWriter() { setWriting(true); setStatus(''); setHoneypot(''); }
+  function openWriter() {
+    try {
+      const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+      if (draft) {
+        setText(draft.text || '');
+        setTitle(draft.title || '');
+        setCategory(draft.category || 'Unsent words');
+      }
+    } catch {}
+    setWriting(true); setStatus(''); setHoneypot('');
+  }
 
   async function publish(e) {
     e.preventDefault();
