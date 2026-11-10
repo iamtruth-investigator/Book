@@ -3,80 +3,20 @@ import { createRoot } from 'react-dom/client';
 import { createClient } from '@supabase/supabase-js';
 import { Feather, BookOpen, PenLine, Heart, ChevronLeft, ChevronRight, X, Send, Sparkles } from 'lucide-react';
 import './style.css';
-
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = url && key ? createClient(url, key) : null;
-
-function App() {
-  const [opened, setOpened] = useState(false);
-  const [writing, setWriting] = useState(false);
-  const [entries, setEntries] = useState([]);
-  const [page, setPage] = useState(0);
-  const [text, setText] = useState('');
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Unsent words');
-  const [status, setStatus] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  async function loadEntries() {
-    if (!supabase) { setEntries([]); setLoading(false); return; }
-    const { data, error } = await supabase.from('entries').select('id,title,body,category,created_at').eq('published', true).order('created_at', { ascending: false }).limit(100);
-    if (!error) setEntries(data || []);
-    setLoading(false);
-  }
-  useEffect(() => { loadEntries(); }, []);
-
-  async function publish(e) {
-    e.preventDefault();
-    if (!text.trim()) return;
-    if (!supabase) { setStatus('The shared book is not connected yet. Add your Supabase keys to enable publishing.'); return; }
-    setStatus('Adding your words to the book…');
-    const { error } = await supabase.from('entries').insert({ title: title.trim() || 'A page without a title', body: text.trim(), category });
-    if (error) setStatus('This page could not be saved. Please try again.');
-    else { setStatus('Your words have found a page. Thank you for leaving them here.'); setText(''); setTitle(''); setWriting(false); setPage(0); await loadEntries(); }
-  }
-
-  const current = entries[page];
-  return <main>
-    {!opened ? <section className="intro">
-      <div className="dust dust1"/><div className="dust dust2"/>
-      <div className="eyebrow"><Feather size={15}/> A BOOK WITHOUT AUTHORS</div>
-      <div className="closed-book" onClick={() => setOpened(true)} role="button" tabIndex="0" onKeyDown={e => e.key === 'Enter' && setOpened(true)}>
-        <div className="book-spine"></div><div className="cover-content">
-          <span className="cover-small">A place for the unsaid</span>
-          <h1>All the Things<br/><i>I Never Told You</i></h1>
-          <div className="cover-rule"></div><p>EVERY HEART HAS A HIDDEN PAGE</p>
-          <Feather className="cover-feather" size={25}/>
-        </div>
-      </div>
-      <p className="intro-copy">Some words stayed in our throats.<br/>Some stories never found a listener.<br/>Perhaps they can find a page here.</p>
-      <button className="open-btn" onClick={() => setOpened(true)}>Open the book <BookOpen size={17}/></button>
-      <span className="hint">TURN THE COVER · FIND A LITTLE COURAGE</span>
-    </section> : <section className="library">
-      <header><a className="wordmark" onClick={() => setOpened(false)}><Feather size={17}/> THE UNSAID LIBRARY</a><button className="write-top" onClick={() => {setWriting(true);setStatus('');}}><PenLine size={16}/> Leave a page</button></header>
-      <div className="welcome"><span className="eyebrow">A SHARED BOOK · NO NAMES REQUIRED</span><h2>Every stranger carries<br/><i>a story worth hearing.</i></h2><p>Write what you never said. Read what someone else couldn't say aloud.</p></div>
-      {writing && <div className="modal-backdrop" onClick={() => setWriting(false)}><form className="write-card" onSubmit={publish} onClick={e => e.stopPropagation()}>
-        <button type="button" className="close" onClick={() => setWriting(false)}><X/></button><span className="eyebrow">YOUR PAGE, YOUR PRIVACY</span><h3>Leave something here.</h3><p className="muted">No name. No profile. Just your words.</p>
-        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Give this page a title (optional)" maxLength="90"/>
-        <select value={category} onChange={e=>setCategory(e.target.value)}><option>Unsent words</option><option>Love & longing</option><option>Regrets</option><option>Healing</option><option>Memories</option><option>Things I wish I said</option><option>Little truths</option></select>
-        <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Dear someone, ...&#10;&#10;Write freely. This is a place for the words you kept." maxLength="5000" required/>
-        <div className="form-foot"><small>{text.length}/5000 · Please don't include private contact details.</small><button className="submit" type="submit"><Send size={15}/> Publish anonymously</button></div>
-        {status && <p className="status">{status}</p>}
-      </form></div>}
-      <div className="book-area">
-        <div className="book-open">
-          <div className="paper left-paper"><span className="page-label">A NOTE TO THE READER</span><div className="left-quote">“You don't have to know who wrote it to understand how it feels.”</div><div className="scribble">— someone, somewhere</div><div className="leaf">✳</div></div>
-          <div className="paper right-paper">
-            {loading ? <div className="empty"><Sparkles/><p>Turning the first pages…</p></div> : current ? <><span className="page-label">{current.category || 'A PAGE FROM A STRANGER'}</span><h3>{current.title}</h3><p className="entry-body">{current.body}</p><span className="anonymous">— A fellow human, anonymously</span></> : <div className="empty"><Feather/><h3>The first page is waiting.</h3><p>Be the first to leave a few honest words.</p><button className="text-btn" onClick={()=>setWriting(true)}>Write the first page <PenLine size={15}/></button></div>}
-            <span className="page-number">{entries.length ? String(page+1).padStart(2,'0') : '—'}</span>
-          </div>
-        </div>
-        <div className="book-controls"><button disabled={page===0} onClick={()=>setPage(p=>Math.max(0,p-1))}><ChevronLeft/> Previous page</button><span>{entries.length ? `${page+1} of ${entries.length} pages` : 'A book in the making'}</span><button disabled={page>=entries.length-1} onClick={()=>setPage(p=>Math.min(entries.length-1,p+1))}>Next page <ChevronRight/></button></div>
-      </div>
-      <div className="bottom-note"><Heart size={14}/> Read gently. These pages belong to real people. <span>{entries.length} {entries.length===1?'page':'pages'} shared</span></div>
-      <footer>ALL THE THINGS I NEVER TOLD YOU <span>·</span> A BOOK WRITTEN BY EVERYONE</footer>
-    </section>}
-  </main>;
+const url=import.meta.env.VITE_SUPABASE_URL, key=import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase=url&&key?createClient(url,key):null;
+function App(){
+ const [opened,setOpened]=useState(false),[writing,setWriting]=useState(false),[entries,setEntries]=useState([]),[page,setPage]=useState(0),[text,setText]=useState(''),[title,setTitle]=useState(''),[category,setCategory]=useState('Unsent words'),[status,setStatus]=useState(''),[loading,setLoading]=useState(true),[turn,setTurn]=useState('');
+ async function loadEntries(){if(!supabase){setEntries([]);setLoading(false);return;}const {data,error}=await supabase.from('entries').select('id,title,body,category,created_at').eq('published',true).order('created_at',{ascending:false}).limit(100);if(!error)setEntries(data||[]);setLoading(false);}
+ useEffect(()=>{loadEntries();},[]);
+ function changePage(next){if(next<0||next>=entries.length||turn)return;setTurn(next>page?'forward':'back');window.setTimeout(()=>{setPage(next);setTurn('');},620);}
+ async function publish(e){e.preventDefault();if(!text.trim())return;if(!supabase){setStatus('The book is still being prepared. Please come back soon.');return;}setStatus('Carefully placing your words on a page…');const {error}=await supabase.from('entries').insert({title:title.trim()||'A page without a title',body:text.trim(),category});if(error)setStatus('Your page could not be saved just now. Please try again.');else{setStatus('Your words have found a home. Thank you for trusting this little book.');setText('');setTitle('');setWriting(false);setPage(0);await loadEntries();}}
+ const current=entries[page];
+ return <main>{!opened?<section className="intro"><div className="glow glow-a"/><div className="glow glow-b"/><div className="stars">✦　 ·　 ✧　　 ·　 ✦</div><div className="intro-kicker"><Feather size={15}/> A QUIET PLACE FOR THE HEART</div><div className="closed-book-wrap" onClick={()=>setOpened(true)} role="button" tabIndex="0" onKeyDown={e=>e.key==='Enter'&&setOpened(true)}><div className="closed-book"><div className="book-pages-edge"/><div className="book-spine"/><div className="cover-content"><span className="cover-ornament">❧</span><span className="cover-small">A collection of unspoken things</span><h1>All the Things<br/><i>I Never Told You</i></h1><div className="cover-rule"><span>✦</span></div><p>FOR THE WORDS THAT NEVER MADE IT OUT</p><Feather className="cover-feather" size={24}/><span className="cover-bottom">EST. IN THE QUIET</span></div></div></div><p className="intro-copy">For the goodbyes we swallowed.<br/>For the love we couldn't confess.<br/>For the nights we wished someone would ask.</p><p className="intro-soft">You can leave a piece of your heart here.<br/>No name is needed. No explanation either.</p><button className="open-btn" onClick={()=>setOpened(true)}>Gently open the book <BookOpen size={17}/></button><span className="hint">TAKE YOUR TIME · YOU ARE SAFE TO FEEL HERE</span></section>:<section className="library">
+ <header><a className="wordmark" onClick={()=>setOpened(false)}><Feather size={17}/> THE UNSAID LIBRARY</a><button className="write-top" onClick={()=>{setWriting(true);setStatus('');}}><PenLine size={16}/> Write a page</button></header>
+ <div className="welcome"><span className="eyebrow">A SHARED BOOK · WRITTEN BY STRANGERS</span><h2>Some feelings are too heavy<br/><i>to keep carrying alone.</i></h2><p>Read a stranger's heart. Leave a little of yours behind.</p></div>
+ {writing&&<div className="modal-backdrop" onClick={()=>setWriting(false)}><form className="write-card" onSubmit={publish} onClick={e=>e.stopPropagation()}><button type="button" className="close" onClick={()=>setWriting(false)}><X/></button><span className="eyebrow">A BLANK PAGE · A BREATH · A BEGINNING</span><h3>Write what your heart remembers.</h3><p className="muted">No names. No judgement. Just a page that will listen.</p><input value={title} onChange={e=>setTitle(e.target.value)} placeholder="A title for this feeling (optional)" maxLength="90"/><select value={category} onChange={e=>setCategory(e.target.value)}><option>Unsent words</option><option>Love & longing</option><option>Goodbyes</option><option>Regrets</option><option>Healing</option><option>Memories</option><option>Things I wish I said</option><option>Little truths</option></select><div className="writing-paper"><div className={'pen-cursor '+(text.length?'pen-moving':'')}><PenLine size={27}/><span/></div><textarea value={text} onChange={e=>setText(e.target.value)} placeholder={'Dear someone,\n\nThere is something I have carried for so long...'} maxLength="5000" required/><div className="paper-flower">❧</div></div><div className="form-foot"><small>{text.length}/5000 · Please leave out private contact details.</small><button className="submit" type="submit"><Send size={15}/> Place my page in the book</button></div>{status&&<p className="status">{status}</p>}</form></div>}
+ <div className="book-area"><div className="book-open"><div className="paper left-paper"><span className="page-label">A LITTLE NOTE</span><div className="left-quote">“Somewhere, someone has felt exactly what you are feeling.”</div><div className="scribble">You are not as alone as it feels.</div><div className="leaf">❧</div><span className="page-number left-num">♡</span></div><div className={'paper right-paper '+(turn?'turn-'+turn:'')}>{loading?<div className="empty"><Sparkles/><p>Dusting off the pages…</p></div>:current?<><span className="page-label">{current.category||'A PAGE FROM A STRANGER'}</span><h3>{current.title}</h3><p className="entry-body">{current.body}</p><span className="anonymous">— someone who needed to say it</span></>:<div className="empty"><Feather/><h3>The first page is still blank.</h3><p>Perhaps yours will be the first story<br/>someone reads on a difficult night.</p><button className="text-btn" onClick={()=>setWriting(true)}>Write the first page <PenLine size={15}/></button></div>}<span className="page-number">{entries.length?String(page+1).padStart(2,'0'):'♡'}</span></div></div><div className="book-controls"><button disabled={page===0||!!turn} onClick={()=>changePage(page-1)}><ChevronLeft/> Previous page</button><span>{entries.length?['PAGE ',page+1,' OF ',entries.length].join(''):'A BOOK WAITING FOR STORIES'}</span><button disabled={page>=entries.length-1||!!turn} onClick={()=>changePage(page+1)}>Turn the page <ChevronRight/></button></div></div>
+ <div className="bottom-note"><Heart size={14}/> Please read gently. Someone left a piece of themselves here. <span>{entries.length} {entries.length===1?'page':'pages'} in this book</span></div><footer>ALL THE THINGS I NEVER TOLD YOU <span>·</span> MAY EVERY UNSAID THING FIND A HOME</footer></section>}</main>;
 }
 createRoot(document.getElementById('root')).render(<App/>);
